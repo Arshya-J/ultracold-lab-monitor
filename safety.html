@@ -1,31 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Safety Systems Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Dashboard - Safety Systems</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .dashboard-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px;
+    }
+
+    iframe {
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
-    <header>
-        <nav>
-            <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="description.html">Project Description</a></li>
-                <li><a href="temperature.html">Live Dashboard - Temperature & Humidity</a></li>
-                <li><a href="safety.html">Live Dashboard - Safety Systems</a></li>
-            </ul>
-        </nav>
-    </header>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="description.html">Project Description</a></li>
+        <li><a href="temperature.html">Live Dashboard - Temperature & Humidity</a></li>
+        <li><a href="safety.html" class="active">Live Dashboard - Safety Systems</a></li>
+      </ul>
+    </nav>
+  </header>
 
-    <section class="dashboard">
-        <h1>Live Dashboard - Safety Systems</h1>
-        <p>Monitoring the status of safety systems in the ultra-cold atoms lab.</p>
-        <iframe src="https://your-grafana-dashboard-url.com" title="Safety Systems Dashboard"></iframe>
-    </section>
+  <main class="dashboard-container">
+    <h2>Temperature & Humidity Combined Panel</h2>
+    <iframe src="https://arshya1802.grafana.net/d-solo/0c859547-ec76-4cd0-b170-dec33d059d8d/ultracold-lab-monitoring?orgId=1&from=now-1d&to=now&panelId=4&refresh=30s" width="900" height="300" frameborder="0"></iframe>
+  </main>
 
-    <footer>
-        <p>&copy; 2025 Ultra-Cold Lab Team</p>
-    </footer>
+  <footer>
+    <p>&copy; 2025 Ultra-Cold Lab Team</p>
+  </footer>
 </body>
 </html>
