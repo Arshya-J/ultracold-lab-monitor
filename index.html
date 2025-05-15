@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ultra-Cold Lab Monitoring</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
     <header>
@@ -21,6 +21,15 @@
     <section class="intro">
         <h1>Welcome to the Ultra-Cold Lab Monitoring System</h1>
         <p>This project aims to provide real-time monitoring for the ultra-cold atoms lab, focusing on environmental data and safety controls.</p>
+
+        <div style="margin-top: 40px;">
+            <h3>Live Overview</h3>
+            <iframe 
+                src="https://arshya1802.grafana.net/d-solo/0c859547-ec76-4cd0-b170-dec33d059d8d/ultracold-lab-monitoring?orgId=1&from=now-1d&to=now&panelId=4&refresh=30s" 
+                width="600" height="250" frameborder="0" 
+                style="border:1px solid #ccc; border-radius: 8px;"
+                ></iframe>
+        </div>
     </section>
 
     <footer>
