@@ -4,34 +4,150 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Live Dashboard - Temperature & Humidity</title>
-  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
   <style>
-    .panel {
-      display: none;
-      margin: 20px 0;
-    }
-    label {
-      font-size: 18px;
-    }
-    .checkbox-group {
-      margin-top: 20px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    canvas { max-width: 100%; margin-top: 20px; }
+    .checkboxes { margin-bottom: 15px; }
+    .data-display { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .data-card { background: #f9f9f9; padding: 10px; border: 1px solid #ccc; border-radius: 5px; width: 150px; }
   </style>
 </head>
 <body>
-  <header>
-    <nav>
-      <ul>
-        <li><a href="index.html">Home</a></li>
-        <li><a href="description.html">Project Description</a></li>
-        <li><a href="temperature.html" class="active">Live Dashboard - Temperature & Humidity</a></li>
-        <li><a href="safety.html">Live Dashboard - Safety Systems</a></li>
-      </ul>
-    </nav>
-  </header>
+  <h2>Live Dashboard - Temperature & Humidity</h2>
 
-  <main>
-    <h1>Temperature & Humidity Dashboard</h1>
+  <div class="checkboxes">
+    <label><input type="checkbox" value="sensor1" checked> Sensor 1</label>
+    <label><input type="checkbox" value="sensor2" checked> Sensor 2</label>
+    <label><input type="checkbox" value="sensor3" checked> Sensor 3</label>
+    <label><input type="checkbox" value="sensor4" checked> Sensor 4</label>
+    <label><input type="checkbox" value="sensor5" checked> Sensor 5</label>
+    <label><input type="checkbox" value="sensor6" checked> Sensor 6</label>
+  </div>
 
-    <div class="checkbox-group">
-      <label><input type="checkbox" onclick="toggle
+  <canvas id="tempChart"></canvas>
+  <canvas id="humChart"></canvas>
+
+  <div class="data-display" id="dataDisplay"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
+      authDomain: "ultracold-matter-lab.firebaseapp.com",
+      databaseURL: "https://ultracold-matter-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ultracold-matter-lab",
+      storageBucket: "ultracold-matter-lab.appspot.com",
+      messagingSenderId: "973389235899",
+      appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const tempCtx = document.getElementById('tempChart').getContext('2d');
+    const humCtx = document.getElementById('humChart').getContext('2d');
+
+    const tempChart = new Chart(tempCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        plugins: {
+          zoom: {
+            zoom: { wheel: { enabled: true }, mode: 'x' }
+          }
+        }
+      }
+    });
+
+    const humChart = new Chart(humCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        plugins: {
+          zoom: {
+            zoom: { wheel: { enabled: true }, mode: 'x' }
+          }
+        }
+      }
+    });
+
+    function getColor(sensor) {
+      const colors = {
+        sensor1: 'red',
+        sensor2: 'blue',
+        sensor3: 'green',
+        sensor4: 'orange',
+        sensor5: 'purple',
+        sensor6: 'brown'
+      };
+      return colors[sensor] || 'gray';
+    }
+
+    function updateCharts(data) {
+      const selected = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
+      const timestamps = new Set();
+      const tempDatasets = [];
+      const humDatasets = [];
+      const dataDisplay = document.getElementById('dataDisplay');
+      dataDisplay.innerHTML = '';
+
+      selected.forEach(sensor => {
+        const readings = data[sensor] || {};
+        const tempData = [];
+        const humData = [];
+        let latestTemp = null;
+        let latestHum = null;
+
+        Object.entries(readings).forEach(([ts, vals]) => {
+          const time = new Date(ts * 1000).toLocaleTimeString();
+          timestamps.add(time);
+          tempData.push({ x: time, y: vals.temperature });
+          humData.push({ x: time, y: vals.humidity });
+          latestTemp = vals.temperature;
+          latestHum = vals.humidity;
+        });
+
+        tempDatasets.push({
+          label: `${sensor} Temp`,
+          data: tempData,
+          borderColor: getColor(sensor),
+          fill: false
+        });
+
+        humDatasets.push({
+          label: `${sensor} Hum`,
+          data: humData,
+          borderColor: getColor(sensor),
+          fill: false
+        });
+
+        const card = document.createElement('div');
+        card.className = 'data-card';
+        card.innerHTML = `<strong>${sensor}</strong><br>Temp: ${latestTemp}°C<br>Hum: ${latestHum}%`;
+        dataDisplay.appendChild(card);
+      });
+
+      const labels = Array.from(timestamps).sort();
+      tempChart.data.labels = labels;
+      tempChart.data.datasets = tempDatasets;
+      tempChart.update();
+
+      humChart.data.labels = labels;
+      humChart.data.datasets = humDatasets;
+      humChart.update();
+    }
+
+    db.ref('/').on('value', snapshot => updateCharts(snapshot.val()));
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb =>
+      cb.addEventListener('change', () =>
+        db.ref('/').once('value').then(snap => updateCharts(snap.val()))
+      )
+    );
+  </script>
+</body>
+</html>
