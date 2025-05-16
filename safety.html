@@ -1,158 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Safety Systems Dashboard - Dummy Data</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
-
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  .checkboxes label { margin-right: 15px; }
-  canvas { max-width: 100%; margin-top: 20px; }
-  .data-box { margin-top: 20px; }
-  .sensor-box { margin-bottom: 8px; }
-</style>
+  <meta charset="UTF-8">
+  <title>Live Dashboard - Safety Systems</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    canvas { width: 100%; max-height: 400px; }
+    .checkboxes { margin-bottom: 15px; }
+    .sensor-box { margin: 5px 0; }
+  </style>
 </head>
 <body>
+  <h2>Live Dashboard - Safety Systems</h2>
 
-<h2>Live Dashboard - Safety Systems (Dummy Data)</h2>
+  <div class="checkboxes">
+    <label><input type="checkbox" value="sensor1" checked> Sensor 1</label>
+    <label><input type="checkbox" value="sensor2" checked> Sensor 2</label>
+    <label><input type="checkbox" value="sensor3" checked> Sensor 3</label>
+    <label><input type="checkbox" value="sensor4" checked> Sensor 4</label>
+    <label><input type="checkbox" value="sensor5" checked> Sensor 5</label>
+    <label><input type="checkbox" value="sensor6" checked> Sensor 6</label>
+  </div>
 
-<div class="checkboxes" id="sensorCheckboxes">
-  <label><input type="checkbox" value="sensor1" checked> Sensor 1</label>
-  <label><input type="checkbox" value="sensor2" checked> Sensor 2</label>
-  <label><input type="checkbox" value="sensor3" checked> Sensor 3</label>
-  <label><input type="checkbox" value="sensor4" checked> Sensor 4</label>
-  <label><input type="checkbox" value="sensor5" checked> Sensor 5</label>
-  <label><input type="checkbox" value="sensor6" checked> Sensor 6</label>
-</div>
+  <canvas id="safetyChart"></canvas>
+  <div id="dataDisplay"></div>
 
-<canvas id="combinedChart"></canvas>
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
+      authDomain: "ultracold-matter-lab.firebaseapp.com",
+      databaseURL: "https://ultracold-matter-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ultracold-matter-lab",
+      storageBucket: "ultracold-matter-lab.firebasestorage.app",
+      messagingSenderId: "973389235899",
+      appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
+      measurementId: "G-LHNSRWPFQ7"
+    };
 
-<div class="data-box" id="dataValues"></div>
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-<script>
-  const ctx = document.getElementById('combinedChart').getContext('2d');
+    const ctx = document.getElementById('safetyChart').getContext('2d');
 
-  const colors = {
-    sensor1: 'red',
-    sensor2: 'blue',
-    sensor3: 'green',
-    sensor4: 'orange',
-    sensor5: 'purple',
-    sensor6: 'brown'
-  };
-
-  // Generate dummy timestamps (last 10 minutes, 1-minute intervals)
-  function generateTimestamps() {
-    const now = Date.now();
-    const timestamps = [];
-    for (let i = 9; i >= 0; i--) {
-      timestamps.push(new Date(now - i * 60000)); // 1 minute interval
-    }
-    return timestamps;
-  }
-
-  // Generate dummy sensor data
-  function generateDummyData() {
-    const sensors = ['sensor1', 'sensor2', 'sensor3', 'sensor4', 'sensor5', 'sensor6'];
-    const timestamps = generateTimestamps();
-
-    const data = {};
-    sensors.forEach(sensor => {
-      data[sensor] = timestamps.map(ts => ({
-        x: ts,
-        temperature: 20 + Math.random() * 5,
-        humidity: 40 + Math.random() * 20
-      }));
-    });
-    return data;
-  }
-
-  const dummyData = generateDummyData();
-
-  // Initialize Chart
-  const combinedChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      datasets: []
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        zoom: { zoom: { wheel: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + (ctx.dataset.temp ? ' °C' : ' %');
-            }
+    const safetyChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        plugins: {
+          zoom: {
+            zoom: { wheel: { enabled: true }, mode: 'x' }
           }
-        }
-      },
-      scales: {
-        x: {
-          type: 'time',
-          time: { tooltipFormat: 'HH:mm:ss', unit: 'minute' },
-          title: { display: true, text: 'Time' }
         },
-        y: {
-          title: { display: true, text: 'Value' },
-          min: 0,
-          max: 100
+        scales: {
+          y: { beginAtZero: true }
         }
       }
-    }
-  });
-
-  function updateChart(data) {
-    const selectedSensors = Array.from(document.querySelectorAll('#sensorCheckboxes input:checked')).map(cb => cb.value);
-
-    const tempDatasets = [];
-    const humDatasets = [];
-
-    selectedSensors.forEach(sensor => {
-      const points = data[sensor];
-      if (!points) return;
-
-      tempDatasets.push({
-        label: sensor + ' Temp',
-        data: points.map(p => ({ x: p.x, y: p.temperature })),
-        borderColor: colors[sensor],
-        backgroundColor: colors[sensor],
-        fill: false,
-        temp: true,
-        tension: 0.2
-      });
-
-      humDatasets.push({
-        label: sensor + ' Hum',
-        data: points.map(p => ({ x: p.x, y: p.humidity })),
-        borderColor: colors[sensor],
-        backgroundColor: colors[sensor],
-        fill: false,
-        borderDash: [5, 5],
-        temp: false,
-        tension: 0.2
-      });
     });
 
-    combinedChart.data.datasets = [...tempDatasets, ...humDatasets];
-    combinedChart.update();
+    function getColor(sensor, type) {
+      const base = {
+        sensor1: 'red', sensor2: 'blue', sensor3: 'green',
+        sensor4: 'orange', sensor5: 'purple', sensor6: 'brown'
+      };
+      return type === 'temperature' ? base[sensor] : base[sensor] + 'AA';
+    }
 
-    // Update serial monitor
-    const dataBox = document.getElementById('dataValues');
-    dataBox.innerHTML = selectedSensors.map(sensor => {
-      const last = data[sensor][data[sensor].length - 1];
-      return `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${last.temperature.toFixed(2)}°C, Hum: ${last.humidity.toFixed(2)}%</div>`;
-    }).join('');
-  }
+    function updateChart(data) {
+      const selectedSensors = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+      const labels = new Set();
+      const datasets = [];
+      const dataDisplay = document.getElementById('dataDisplay');
+      dataDisplay.innerHTML = '';
 
-  document.getElementById('sensorCheckboxes').addEventListener('change', () => updateChart(dummyData));
+      selectedSensors.forEach(sensor => {
+        const entries = data[sensor] || {};
+        const tempPoints = [], humPoints = [];
+        let latestTemp = '-', latestHum = '-';
 
-  // Initial chart render
-  updateChart(dummyData);
-</script>
+        Object.entries(entries).forEach(([ts, val]) => {
+          const label = new Date(ts * 1000).toLocaleTimeString();
+          labels.add(label);
+          tempPoints.push({ x: label, y: val.temperature });
+          humPoints.push({ x: label, y: val.humidity });
+          latestTemp = val.temperature;
+          latestHum = val.humidity;
+        });
 
+        datasets.push({
+          label: `${sensor} Temp`,
+          data: tempPoints,
+          borderColor: getColor(sensor, 'temperature'),
+          fill: false
+        });
+        datasets.push({
+          label: `${sensor} Hum`,
+          data: humPoints,
+          borderColor: getColor(sensor, 'humidity'),
+          borderDash: [5, 5],
+          fill: false
+        });
+
+        dataDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
+      });
+
+      safetyChart.data.labels = Array.from(labels);
+      safetyChart.data.datasets = datasets;
+      safetyChart.update();
+    }
+
+    db.ref('/').on('value', snapshot => updateChart(snapshot.val()));
+
+    document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        db.ref('/').once('value').then(snapshot => updateChart(snapshot.val()));
+      });
+    });
+  </script>
 </body>
 </html>
