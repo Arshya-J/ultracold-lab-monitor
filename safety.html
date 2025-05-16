@@ -65,20 +65,12 @@
     });
 
     function getColor(sensor, type) {
-      const baseColors = {
-        sensor1: '255, 0, 0',       // red
-        sensor2: '0, 0, 255',       // blue
-        sensor3: '0, 128, 0',       // green
-        sensor4: '255, 165, 0',     // orange
-        sensor5: '128, 0, 128',     // purple
-        sensor6: '165, 42, 42'      // brown
+      const base = {
+        sensor1: 'red', sensor2: 'blue', sensor3: 'green',
+        sensor4: 'orange', sensor5: 'purple', sensor6: 'brown'
       };
-      if (!baseColors[sensor]) return '0,0,0'; // default black
-      if (type === 'temperature') {
-        return `rgb(${baseColors[sensor]})`;
-      } else {
-        return `rgba(${baseColors[sensor]}, 0.5)`;  // semi-transparent for humidity
-      }
+      if(type === 'temperature') return base[sensor];
+      else return base[sensor] + 'AA';  // add transparency for humidity dashed lines
     }
 
     function updateChart(data) {
@@ -88,18 +80,24 @@
       const dataDisplay = document.getElementById('dataDisplay');
       dataDisplay.innerHTML = '';
 
+      const oneDayAgo = Math.floor(Date.now() / 1000) - 86400; // 24 hours ago UNIX timestamp
+
       selectedSensors.forEach(sensor => {
-        const entries = data?.[sensor] || {};
+        const entries = data?.sensors?.[sensor] || {};
         const tempPoints = [], humPoints = [];
         let latestTemp = '-', latestHum = '-';
 
+        // Filter data points for last 24 hours only
         Object.entries(entries).forEach(([ts, val]) => {
-          const timeLabel = new Date(ts * 1000).toLocaleTimeString();
-          labelsSet.add(timeLabel);
-          tempPoints.push({ x: timeLabel, y: val.temperature });
-          humPoints.push({ x: timeLabel, y: val.humidity });
-          latestTemp = val.temperature;
-          latestHum = val.humidity;
+          const timestamp = parseInt(ts);
+          if(timestamp >= oneDayAgo) {
+            const label = new Date(timestamp * 1000).toLocaleTimeString();
+            labelsSet.add(label);
+            tempPoints.push({ x: label, y: val.temperature });
+            humPoints.push({ x: label, y: val.humidity });
+            latestTemp = val.temperature;
+            latestHum = val.humidity;
+          }
         });
 
         datasets.push({
@@ -107,7 +105,7 @@
           data: tempPoints,
           borderColor: getColor(sensor, 'temperature'),
           fill: false,
-          tension: 0.3
+          tension: 0.1,
         });
         datasets.push({
           label: `${sensor} Hum`,
@@ -115,25 +113,31 @@
           borderColor: getColor(sensor, 'humidity'),
           borderDash: [5, 5],
           fill: false,
-          tension: 0.3
+          tension: 0.1,
         });
 
-        dataDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
+        dataDisplay.innerHTML += `<div class="sensor-box"><strong>${sensor.toUpperCase()}</strong> - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
       });
 
-      const sortedLabels = Array.from(labelsSet).sort((a, b) => new Date('1970/01/01 ' + a) - new Date('1970/01/01 ' + b));
+      // Sort labels to keep chart consistent
+      const sortedLabels = Array.from(labelsSet).sort((a,b) => new Date('1970/01/01 ' + a) - new Date('1970/01/01 ' + b));
+
       safetyChart.data.labels = sortedLabels;
       safetyChart.data.datasets = datasets;
       safetyChart.update();
     }
 
-    // Listen on /sensors path, NOT root
-    db.ref('/sensors').on('value', snapshot => updateChart(snapshot.val()));
+    // Load data once on page load
+    db.ref('/').once('value').then(snapshot => {
+      updateChart(snapshot.val());
+    });
 
-    // Re-render on checkbox change (fetch latest snapshot once)
+    // Update chart on checkbox changes
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', () => {
-        db.ref('/sensors').once('value').then(snapshot => updateChart(snapshot.val()));
+        db.ref('/').once('value').then(snapshot => {
+          updateChart(snapshot.val());
+        });
       });
     });
   </script>
