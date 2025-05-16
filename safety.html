@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
   <style>
-    body { font-family: Arial; margin: 20px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
     canvas { max-width: 100%; margin-top: 20px; }
     .checkboxes { margin-bottom: 15px; }
   </style>
@@ -36,81 +36,6 @@
       projectId: "ultracold-matter-lab",
       storageBucket: "ultracold-matter-lab.appspot.com",
       messagingSenderId: "973389235899",
-      appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    const ctx = document.getElementById('combinedChart').getContext('2d');
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: { labels: [], datasets: [] },
-      options: {
-        responsive: true,
-        plugins: {
-          zoom: {
-            zoom: { wheel: { enabled: true }, mode: 'x' }
-          }
-        }
-      }
-    });
-
-    function getColor(sensor, type) {
-      const colorMap = {
-        sensor1: ['red', 'lightcoral'],
-        sensor2: ['blue', 'skyblue'],
-        sensor3: ['green', 'lightgreen'],
-        sensor4: ['orange', 'gold'],
-        sensor5: ['purple', 'plum'],
-        sensor6: ['brown', 'burlywood']
-      };
-      return colorMap[sensor]?.[type === 'humidity' ? 1 : 0] || 'gray';
-    }
-
-    function updateCombinedChart(data) {
-      const selected = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
-      const timestamps = new Set();
-      const datasets = [];
-
-      selected.forEach(sensor => {
-        const readings = data[sensor] || {};
-        const temp = [], hum = [];
-
-        Object.entries(readings).forEach(([ts, vals]) => {
-          const time = new Date(ts * 1000).toLocaleTimeString();
-          timestamps.add(time);
-          temp.push({ x: time, y: vals.temperature });
-          hum.push({ x: time, y: vals.humidity });
-        });
-
-        datasets.push({
-          label: `${sensor} - Temp`,
-          data: temp,
-          borderColor: getColor(sensor, 'temperature'),
-          fill: false
-        });
-
-        datasets.push({
-          label: `${sensor} - Hum`,
-          data: hum,
-          borderColor: getColor(sensor, 'humidity'),
-          borderDash: [5, 5],
-          fill: false
-        });
-      });
-
-      chart.data.labels = Array.from(timestamps);
-      chart.data.datasets = datasets;
-      chart.update();
-    }
-
-    db.ref('/').on('value', snapshot => updateCombinedChart(snapshot.val()));
-    document.querySelectorAll('input[type="checkbox"]').forEach(cb =>
-      cb.addEventListener('change', () =>
-        db.ref('/').once('value').then(snap => updateCombinedChart(snap.val()))
-      )
-    );
-  </script>
-</body>
-</html>
+      appId: "
+::contentReference[oaicite:12]{index=12}
+ 
