@@ -6,10 +6,12 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
   <style>
-    body { font-family: Arial; margin: 20px; }
-    .checkboxes { margin-bottom: 10px; }
-    #dataDisplay { margin-top: 15px; font-weight: bold; }
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f8f8f8; }
+    canvas { width: 100%; max-height: 400px; background: white; padding: 10px; border-radius: 8px; }
+    .checkboxes { margin-bottom: 15px; }
+    .sensor-box { margin: 5px 0; }
   </style>
 </head>
 <body>
@@ -28,6 +30,7 @@
   <div id="dataDisplay"></div>
 
   <script>
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
       authDomain: "ultracold-matter-lab.firebaseapp.com",
@@ -38,6 +41,8 @@
       appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
       measurementId: "G-LHNSRWPFQ7"
     };
+
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -47,12 +52,35 @@
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
+        plugins: {
+          zoom: {
+            zoom: { wheel: { enabled: true }, mode: 'x' }
+          }
+        },
         scales: {
           y: { beginAtZero: true }
         }
       }
     });
 
+    // Sensor base colors
+    const sensorColors = {
+      sensor1: 'rgb(255, 99, 132)',    // red
+      sensor2: 'rgb(54, 162, 235)',    // blue
+      sensor3: 'rgb(255, 206, 86)',    // yellow
+      sensor4: 'rgb(75, 192, 192)',    // teal
+      sensor5: 'rgb(153, 102, 255)',   // purple
+      sensor6: 'rgb(255, 159, 64)'     // orange
+    };
+
+    // Mix with white
+    function blendWithWhite(rgbStr, factor = 0.5) {
+      const rgb = rgbStr.match(/\d+/g).map(Number);
+      const blended = rgb.map(c => Math.round(c + (255 - c) * factor));
+      return `rgb(${blended.join(',')})`;
+    }
+
+    // Update chart from data
     function updateChart(data) {
       const selected = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
       const allLabels = new Set();
@@ -64,8 +92,7 @@
         if (!data[sensor]) return;
 
         const timestamps = Object.keys(data[sensor]).sort();
-        const tempData = [];
-        const humData = [];
+        const tempData = [], humData = [];
         let latestTemp = '', latestHum = '';
 
         timestamps.forEach(ts => {
@@ -79,21 +106,27 @@
           latestHum = hum;
         });
 
+        const baseColor = sensorColors[sensor] || 'rgb(100,100,100)';
+        const lightColor = blendWithWhite(baseColor, 0.5);
+
         datasets.push({
           label: `${sensor} Temp`,
           data: tempData,
-          borderColor: 'red',
-          fill: false
-        });
-        datasets.push({
-          label: `${sensor} Hum`,
-          data: humData,
-          borderColor: 'blue',
-          borderDash: [5, 5],
+          borderColor: baseColor,
+          borderWidth: 2,
           fill: false
         });
 
-        displayDiv.innerHTML += `<div>${sensor.toUpperCase()} — Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
+        datasets.push({
+          label: `${sensor} Hum`,
+          data: humData,
+          borderColor: lightColor,
+          borderDash: [5, 5],
+          borderWidth: 2,
+          fill: false
+        });
+
+        displayDiv.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} — Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
       });
 
       chart.data.labels = Array.from(allLabels);
@@ -101,14 +134,17 @@
       chart.update();
     }
 
-    db.ref('/sensors').on('value', snap => {
-      if (snap.exists()) updateChart(snap.val());
+    // Initial and update fetch
+    db.ref('/sensors').on('value', snapshot => {
+      const val = snapshot.val();
+      if (val) updateChart(val);
     });
 
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', () => {
-        db.ref('/sensors').once('value').then(snap => {
-          if (snap.exists()) updateChart(snap.val());
+        db.ref('/sensors').once('value').then(snapshot => {
+          const val = snapshot.val();
+          if (val) updateChart(val);
         });
       });
     });
