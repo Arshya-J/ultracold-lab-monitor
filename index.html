@@ -1,30 +1,136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultra-Cold Lab Monitoring</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Dashboard - Temperature & Humidity</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: Arial; margin: 20px; }
+    canvas { max-width: 100%; }
+    .checkboxes { margin-bottom: 15px; }
+    .data-box { margin-top: 20px; }
+    .sensor-box { margin-bottom: 10px; }
+  </style>
 </head>
 <body>
-    <header>
-        <nav>
-            <ul>
-                <li><a href="index.html">Home</a></li>
-                <li><a href="description.html">Project Description</a></li>
-                <li><a href="temperature.html">Live Dashboard - Temperature & Humidity</a></li>
-                <li><a href="safety.html">Live Dashboard - Safety Systems</a></li>
-            </ul>
-        </nav>
-    </header>
+  <h2>Live Dashboard - Temperature & Humidity</h2>
 
-    <section class="intro">
-        <h1>Welcome to the Ultra-Cold Lab Monitoring System</h1>
-        <p>This project provides real-time and archived monitoring for the ultra-cold atoms lab—focusing on environmental data and safety control systems.</p>
-    </section>
+  <div class="checkboxes">
+    <label><input type="checkbox" value="sensor1" checked> Sensor 1</label>
+    <label><input type="checkbox" value="sensor2" checked> Sensor 2</label>
+    <label><input type="checkbox" value="sensor3" checked> Sensor 3</label>
+    <label><input type="checkbox" value="sensor4" checked> Sensor 4</label>
+    <label><input type="checkbox" value="sensor5" checked> Sensor 5</label>
+    <label><input type="checkbox" value="sensor6" checked> Sensor 6</label>
+  </div>
 
-    <footer>
-        <p>&copy; 2025 Ultra-Cold Lab Team</p>
-    </footer>
+  <canvas id="tempChart"></canvas>
+  <canvas id="humChart"></canvas>
+
+  <div class="data-box" id="dataValues"></div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
+      authDomain: "ultracold-matter-lab.firebaseapp.com",
+      databaseURL: "https://ultracold-matter-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "ultracold-matter-lab",
+      storageBucket: "ultracold-matter-lab.firebasestorage.app",
+      messagingSenderId: "973389235899",
+      appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
+      measurementId: "G-LHNSRWPFQ7"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const tempCtx = document.getElementById('tempChart').getContext('2d');
+    const humCtx = document.getElementById('humChart').getContext('2d');
+
+    const tempChart = new Chart(tempCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } } }
+    });
+
+    const humChart = new Chart(humCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: { responsive: true, interaction: { mode: 'index', intersect: false }, plugins: { zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } } } }
+    });
+
+    function updateCharts(data) {
+      const selectedSensors = [...document.querySelectorAll('input[type="checkbox"]:checked')].map(cb => cb.value);
+
+      const timestamps = new Set();
+      const tempSets = {}, humSets = {};
+
+      selectedSensors.forEach(sensor => {
+        const entries = data[sensor] || {};
+        const tempData = [], humData = [], timeLabels = [];
+
+        Object.entries(entries).forEach(([ts, values]) => {
+          const t = new Date(Number(ts) * 1000);
+          timestamps.add(t.toLocaleTimeString());
+          tempData.push(values.temperature);
+          humData.push(values.humidity);
+        });
+
+        tempSets[sensor] = tempData;
+        humSets[sensor] = humData;
+      });
+
+      const labels = Array.from(timestamps);
+
+      tempChart.data.labels = labels;
+      humChart.data.labels = labels;
+
+      tempChart.data.datasets = selectedSensors.map(sensor => ({
+        label: sensor,
+        data: tempSets[sensor],
+        borderColor: getColor(sensor),
+        fill: false
+      }));
+
+      humChart.data.datasets = selectedSensors.map(sensor => ({
+        label: sensor,
+        data: humSets[sensor],
+        borderColor: getColor(sensor),
+        fill: false
+      }));
+
+      tempChart.update();
+      humChart.update();
+
+      const dataBox = document.getElementById("dataValues");
+      dataBox.innerHTML = selectedSensors.map(sensor => {
+        const last = data[sensor] ? Object.values(data[sensor]).at(-1) : {};
+        return `<div class='sensor-box'>${sensor.toUpperCase()} - Temp: ${last.temperature}°C, Hum: ${last.humidity}%</div>`;
+      }).join("");
+    }
+
+    function getColor(sensor) {
+      const colors = {
+        sensor1: 'red', sensor2: 'blue', sensor3: 'green',
+        sensor4: 'orange', sensor5: 'purple', sensor6: 'brown'
+      };
+      return colors[sensor] || 'black';
+    }
+
+    firebase.database().ref('/').on('value', snapshot => {
+      const data = snapshot.val();
+      updateCharts(data);
+    });
+
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
+      firebase.database().ref('/').once('value').then(snapshot => updateCharts(snapshot.val()));
+    }));
+  </script>
 </body>
 </html>
