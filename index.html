@@ -3,26 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ultracold Matter Lab Dashboard</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f0f0f0; }
-    h1 { font-size: 28px; margin-bottom: 20px; }
-    .nav a {
-      display: block;
-      margin: 10px 0;
-      font-size: 18px;
-      color: #1a73e8;
-      text-decoration: none;
-    }
-    .nav a:hover { text-decoration: underline; }
-  </style>
+  <title>Ultracold Matter Lab Monitor</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Ultracold Matter Lab - Monitoring System</h1>
-  <p>Choose a live dashboard below:</p>
-  <div class="nav">
-    <a href="temperature.html">Live Dashboard - Temperature & Humidity</a>
-    <a href="safety.html">Live Dashboard - Safety Systems</a>
-  </div>
+  <header>
+    <h1>Ultracold Matter Lab Monitoring System</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="temperature.html">Live Dashboard - Temp & Humidity</a>
+      <a href="safety.html">Live Dashboard - Safety Systems</a>
+      <a href="description.html">System Description</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>Welcome to the Real-Time Monitoring Dashboard</h2>
+      <p>This system continuously monitors environmental parameters from multiple locations in the ultracold atoms lab using ESP32 and DHT11 sensors, with data logged and displayed in real time.</p>
+    </section>
+  </main>
 </body>
 </html>
+
