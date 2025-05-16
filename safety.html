@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Live Dashboard - Safety Systems</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
@@ -65,30 +65,39 @@
     });
 
     function getColor(sensor, type) {
-      const base = {
-        sensor1: 'red', sensor2: 'blue', sensor3: 'green',
-        sensor4: 'orange', sensor5: 'purple', sensor6: 'brown'
+      const baseColors = {
+        sensor1: '255, 0, 0',       // red
+        sensor2: '0, 0, 255',       // blue
+        sensor3: '0, 128, 0',       // green
+        sensor4: '255, 165, 0',     // orange
+        sensor5: '128, 0, 128',     // purple
+        sensor6: '165, 42, 42'      // brown
       };
-      return type === 'temperature' ? base[sensor] : base[sensor] + 'AA';
+      if (!baseColors[sensor]) return '0,0,0'; // default black
+      if (type === 'temperature') {
+        return `rgb(${baseColors[sensor]})`;
+      } else {
+        return `rgba(${baseColors[sensor]}, 0.5)`;  // semi-transparent for humidity
+      }
     }
 
     function updateChart(data) {
       const selectedSensors = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
-      const labels = new Set();
+      const labelsSet = new Set();
       const datasets = [];
       const dataDisplay = document.getElementById('dataDisplay');
       dataDisplay.innerHTML = '';
 
       selectedSensors.forEach(sensor => {
-        const entries = data[sensor] || {};
+        const entries = data?.[sensor] || {};
         const tempPoints = [], humPoints = [];
         let latestTemp = '-', latestHum = '-';
 
         Object.entries(entries).forEach(([ts, val]) => {
-          const label = new Date(ts * 1000).toLocaleTimeString();
-          labels.add(label);
-          tempPoints.push({ x: label, y: val.temperature });
-          humPoints.push({ x: label, y: val.humidity });
+          const timeLabel = new Date(ts * 1000).toLocaleTimeString();
+          labelsSet.add(timeLabel);
+          tempPoints.push({ x: timeLabel, y: val.temperature });
+          humPoints.push({ x: timeLabel, y: val.humidity });
           latestTemp = val.temperature;
           latestHum = val.humidity;
         });
@@ -97,29 +106,34 @@
           label: `${sensor} Temp`,
           data: tempPoints,
           borderColor: getColor(sensor, 'temperature'),
-          fill: false
+          fill: false,
+          tension: 0.3
         });
         datasets.push({
           label: `${sensor} Hum`,
           data: humPoints,
           borderColor: getColor(sensor, 'humidity'),
           borderDash: [5, 5],
-          fill: false
+          fill: false,
+          tension: 0.3
         });
 
         dataDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
       });
 
-      safetyChart.data.labels = Array.from(labels);
+      const sortedLabels = Array.from(labelsSet).sort((a, b) => new Date('1970/01/01 ' + a) - new Date('1970/01/01 ' + b));
+      safetyChart.data.labels = sortedLabels;
       safetyChart.data.datasets = datasets;
       safetyChart.update();
     }
 
-    db.ref('/').on('value', snapshot => updateChart(snapshot.val()));
+    // Listen on /sensors path, NOT root
+    db.ref('/sensors').on('value', snapshot => updateChart(snapshot.val()));
 
+    // Re-render on checkbox change (fetch latest snapshot once)
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', () => {
-        db.ref('/').once('value').then(snapshot => updateChart(snapshot.val()));
+        db.ref('/sensors').once('value').then(snapshot => updateChart(snapshot.val()));
       });
     });
   </script>
