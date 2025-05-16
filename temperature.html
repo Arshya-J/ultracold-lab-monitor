@@ -8,28 +8,14 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
-    canvas {
-      width: 100%;
-      max-height: 400px;
-      margin-bottom: 20px;
-    }
-    .checkboxes {
-      margin-bottom: 15px;
-    }
-    .sensor-box {
-      margin: 5px 0;
-    }
-    h2 {
-      margin-top: 40px;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    canvas { width: 100%; max-height: 400px; margin-bottom: 30px; }
+    .checkboxes { margin-bottom: 15px; }
+    .sensor-box { margin: 5px 0; }
   </style>
 </head>
 <body>
-  <h1>Live Dashboard - Temperature & Humidity</h1>
+  <h2>Live Dashboard - Temperature & Humidity</h2>
 
   <div class="checkboxes">
     <label><input type="checkbox" value="sensor1" checked> Sensor 1</label>
@@ -40,21 +26,18 @@
     <label><input type="checkbox" value="sensor6" checked> Sensor 6</label>
   </div>
 
-  <h2>Temperature</h2>
-  <canvas id="tempChart"></canvas>
-  <div id="tempDataDisplay"></div>
-
-  <h2>Humidity</h2>
-  <canvas id="humChart"></canvas>
-  <div id="humDataDisplay"></div>
+  <canvas id="temperatureChart"></canvas>
+  <canvas id="humidityChart"></canvas>
+  <div id="dataDisplay"></div>
 
   <script>
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
       authDomain: "ultracold-matter-lab.firebaseapp.com",
       databaseURL: "https://ultracold-matter-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "ultracold-matter-lab",
-      storageBucket: "ultracold-matter-lab.firebasestorage.app",
+      storageBucket: "ultracold-matter-lab.appspot.com",
       messagingSenderId: "973389235899",
       appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
       measurementId: "G-LHNSRWPFQ7"
@@ -63,19 +46,27 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const tempCtx = document.getElementById('tempChart').getContext('2d');
-    const humCtx = document.getElementById('humChart').getContext('2d');
+    const ctxTemp = document.getElementById('temperatureChart').getContext('2d');
+    const ctxHum = document.getElementById('humidityChart').getContext('2d');
 
     const colorMap = {
-      sensor1: 'red',
-      sensor2: 'blue',
-      sensor3: 'green',
-      sensor4: 'orange',
-      sensor5: 'purple',
-      sensor6: 'brown'
+      sensor1: '#FF0000',  // red
+      sensor2: '#0000FF',  // blue
+      sensor3: '#008000',  // green
+      sensor4: '#FFA500',  // orange
+      sensor5: '#800080',  // purple
+      sensor6: '#A52A2A'   // brown
     };
 
-    const tempChart = new Chart(tempCtx, {
+    function blendWithWhite(hex, percentage = 0.5) {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const r = Math.round((num >> 16) * (1 - percentage) + 255 * percentage);
+      const g = Math.round(((num >> 8) & 0x00FF) * (1 - percentage) + 255 * percentage);
+      const b = Math.round((num & 0x0000FF) * (1 - percentage) + 255 * percentage);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    const temperatureChart = new Chart(ctxTemp, {
       type: 'line',
       data: { labels: [], datasets: [] },
       options: {
@@ -91,7 +82,7 @@
       }
     });
 
-    const humChart = new Chart(humCtx, {
+    const humidityChart = new Chart(ctxHum, {
       type: 'line',
       data: { labels: [], datasets: [] },
       options: {
@@ -109,14 +100,11 @@
 
     function updateCharts(data) {
       const selectedSensors = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
-      const labels = new Set();
+      const labelsSet = new Set();
       const tempDatasets = [];
       const humDatasets = [];
-
-      const tempDisplay = document.getElementById('tempDataDisplay');
-      const humDisplay = document.getElementById('humDataDisplay');
-      tempDisplay.innerHTML = '';
-      humDisplay.innerHTML = '';
+      const dataDisplay = document.getElementById('dataDisplay');
+      dataDisplay.innerHTML = '';
 
       selectedSensors.forEach(sensor => {
         const entries = data[sensor] || {};
@@ -126,48 +114,49 @@
 
         Object.entries(entries).forEach(([ts, val]) => {
           const label = new Date(ts * 1000).toLocaleTimeString();
-          labels.add(label);
+          labelsSet.add(label);
           tempPoints.push({ x: label, y: val.temp });
           humPoints.push({ x: label, y: val.hum });
           latestTemp = val.temp;
           latestHum = val.hum;
         });
 
+        const baseColor = colorMap[sensor];
+        const mixedColor = blendWithWhite(baseColor);
+
         tempDatasets.push({
           label: `${sensor} Temp`,
           data: tempPoints,
-          borderColor: colorMap[sensor],
+          borderColor: baseColor,
           fill: false
         });
 
         humDatasets.push({
           label: `${sensor} Hum`,
           data: humPoints,
-          borderColor: colorMap[sensor] + '80',  // 50% opacity in hex
+          borderColor: mixedColor,
           borderDash: [5, 5],
           fill: false
         });
 
-        tempDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C</div>`;
-        humDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Hum: ${latestHum}%</div>`;
+        dataDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
       });
 
-      const sortedLabels = Array.from(labels).sort((a, b) => new Date('1970/01/01 ' + a) - new Date('1970/01/01 ' + b));
+      const sortedLabels = Array.from(labelsSet).sort();
 
-      tempChart.data.labels = sortedLabels;
-      humChart.data.labels = sortedLabels;
-      tempChart.data.datasets = tempDatasets;
-      humChart.data.datasets = humDatasets;
-
-      tempChart.update();
-      humChart.update();
+      temperatureChart.data.labels = sortedLabels;
+      humidityChart.data.labels = sortedLabels;
+      temperatureChart.data.datasets = tempDatasets;
+      humidityChart.data.datasets = humDatasets;
+      temperatureChart.update();
+      humidityChart.update();
     }
 
-    db.ref('/sensors').on('value', snapshot => updateCharts(snapshot.val()));
+    db.ref('/sensors').on('value', snapshot => updateCharts(snapshot.val() || {}));
 
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', () => {
-        db.ref('/sensors').once('value').then(snapshot => updateCharts(snapshot.val()));
+        db.ref('/sensors').once('value').then(snapshot => updateCharts(snapshot.val() || {}));
       });
     });
   </script>
