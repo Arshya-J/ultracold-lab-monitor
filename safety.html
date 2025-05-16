@@ -44,7 +44,6 @@
   <div id="dataDisplay"></div>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
       authDomain: "ultracold-matter-lab.firebaseapp.com",
@@ -113,16 +112,15 @@
 
         Object.entries(entries).forEach(([ts, val]) => {
           let timestamp = parseInt(ts);
-          if (isNaN(timestamp)) {
-            timestamp = Math.floor(new Date(ts).getTime() / 1000);
-          }
+          if (isNaN(timestamp)) return;
+
           if (timestamp >= oneDayAgo) {
             const label = new Date(timestamp * 1000).toLocaleTimeString();
             labelsSet.add(label);
-            tempPoints.push({ x: label, y: val.temperature });
-            humPoints.push({ x: label, y: val.humidity });
-            latestTemp = val.temperature;
-            latestHum = val.humidity;
+            tempPoints.push({ x: label, y: val.temp });
+            humPoints.push({ x: label, y: val.hum });
+            latestTemp = val.temp;
+            latestHum = val.hum;
           }
         });
 
