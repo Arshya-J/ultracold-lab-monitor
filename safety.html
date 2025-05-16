@@ -1,17 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Live Dashboard - Safety Systems</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    canvas { width: 100%; max-height: 400px; }
-    .checkboxes { margin-bottom: 15px; }
-    .sensor-box { margin: 5px 0; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    canvas {
+      width: 100%;
+      max-height: 400px;
+    }
+    .checkboxes {
+      margin-bottom: 15px;
+    }
+    .sensor-box {
+      margin: 5px 0;
+      padding: 6px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
@@ -36,13 +50,12 @@
       authDomain: "ultracold-matter-lab.firebaseapp.com",
       databaseURL: "https://ultracold-matter-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "ultracold-matter-lab",
-      storageBucket: "ultracold-matter-lab.firebasestorage.app",
+      storageBucket: "ultracold-matter-lab.appspot.com",
       messagingSenderId: "973389235899",
       appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
       measurementId: "G-LHNSRWPFQ7"
     };
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -50,27 +63,38 @@
 
     const safetyChart = new Chart(ctx, {
       type: 'line',
-      data: { labels: [], datasets: [] },
+      data: {
+        labels: [],
+        datasets: []
+      },
       options: {
         responsive: true,
         plugins: {
           zoom: {
-            zoom: { wheel: { enabled: true }, mode: 'x' }
+            zoom: {
+              wheel: { enabled: true },
+              mode: 'x'
+            }
           }
         },
         scales: {
-          y: { beginAtZero: true }
+          y: {
+            beginAtZero: true
+          }
         }
       }
     });
 
     function getColor(sensor, type) {
       const base = {
-        sensor1: 'red', sensor2: 'blue', sensor3: 'green',
-        sensor4: 'orange', sensor5: 'purple', sensor6: 'brown'
+        sensor1: 'red',
+        sensor2: 'blue',
+        sensor3: 'green',
+        sensor4: 'orange',
+        sensor5: 'purple',
+        sensor6: 'brown'
       };
-      if(type === 'temperature') return base[sensor];
-      else return base[sensor] + 'AA';  // add transparency for humidity dashed lines
+      return type === 'temperature' ? base[sensor] : base[sensor] + 'AA';
     }
 
     function updateChart(data) {
@@ -80,17 +104,19 @@
       const dataDisplay = document.getElementById('dataDisplay');
       dataDisplay.innerHTML = '';
 
-      const oneDayAgo = Math.floor(Date.now() / 1000) - 86400; // 24 hours ago UNIX timestamp
+      const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
 
       selectedSensors.forEach(sensor => {
-        const entries = data?.sensors?.[sensor] || {};
+        const entries = data?.[sensor] || {};
         const tempPoints = [], humPoints = [];
         let latestTemp = '-', latestHum = '-';
 
-        // Filter data points for last 24 hours only
         Object.entries(entries).forEach(([ts, val]) => {
-          const timestamp = parseInt(ts);
-          if(timestamp >= oneDayAgo) {
+          let timestamp = parseInt(ts);
+          if (isNaN(timestamp)) {
+            timestamp = Math.floor(new Date(ts).getTime() / 1000);
+          }
+          if (timestamp >= oneDayAgo) {
             const label = new Date(timestamp * 1000).toLocaleTimeString();
             labelsSet.add(label);
             tempPoints.push({ x: label, y: val.temperature });
@@ -105,7 +131,7 @@
           data: tempPoints,
           borderColor: getColor(sensor, 'temperature'),
           fill: false,
-          tension: 0.1,
+          tension: 0.2
         });
         datasets.push({
           label: `${sensor} Hum`,
@@ -113,31 +139,24 @@
           borderColor: getColor(sensor, 'humidity'),
           borderDash: [5, 5],
           fill: false,
-          tension: 0.1,
+          tension: 0.2
         });
 
-        dataDisplay.innerHTML += `<div class="sensor-box"><strong>${sensor.toUpperCase()}</strong> - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
+        dataDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
       });
 
-      // Sort labels to keep chart consistent
-      const sortedLabels = Array.from(labelsSet).sort((a,b) => new Date('1970/01/01 ' + a) - new Date('1970/01/01 ' + b));
+      const sortedLabels = Array.from(labelsSet).sort((a, b) => new Date('1970/01/01 ' + a) - new Date('1970/01/01 ' + b));
 
       safetyChart.data.labels = sortedLabels;
       safetyChart.data.datasets = datasets;
       safetyChart.update();
     }
 
-    // Load data once on page load
-    db.ref('/').once('value').then(snapshot => {
-      updateChart(snapshot.val());
-    });
+    db.ref('/sensors').on('value', snapshot => updateChart(snapshot.val()));
 
-    // Update chart on checkbox changes
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', () => {
-        db.ref('/').once('value').then(snapshot => {
-          updateChart(snapshot.val());
-        });
+        db.ref('/sensors').once('value').then(snapshot => updateChart(snapshot.val()));
       });
     });
   </script>
