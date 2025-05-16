@@ -6,12 +6,10 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    canvas { width: 100%; max-height: 400px; }
-    .checkboxes { margin-bottom: 15px; }
-    .sensor-box { margin: 5px 0; }
+    body { font-family: Arial; margin: 20px; }
+    .checkboxes { margin-bottom: 10px; }
+    #dataDisplay { margin-top: 15px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -30,7 +28,6 @@
   <div id="dataDisplay"></div>
 
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
       authDomain: "ultracold-matter-lab.firebaseapp.com",
@@ -41,87 +38,78 @@
       appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
       measurementId: "G-LHNSRWPFQ7"
     };
-
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     const ctx = document.getElementById('safetyChart').getContext('2d');
-
-    const safetyChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
       type: 'line',
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
-        plugins: {
-          zoom: {
-            zoom: { wheel: { enabled: true }, mode: 'x' }
-          }
-        },
         scales: {
           y: { beginAtZero: true }
         }
       }
     });
 
-    function getColor(sensor, type) {
-      const base = {
-        sensor1: 'red', sensor2: 'blue', sensor3: 'green',
-        sensor4: 'orange', sensor5: 'purple', sensor6: 'brown'
-      };
-      return type === 'temperature' ? base[sensor] : base[sensor] + 'AA';
-    }
-
     function updateChart(data) {
-      const selectedSensors = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
-      const labelsSet = new Set();
+      const selected = Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(cb => cb.value);
+      const allLabels = new Set();
       const datasets = [];
-      const dataDisplay = document.getElementById('dataDisplay');
-      dataDisplay.innerHTML = '';
+      const displayDiv = document.getElementById('dataDisplay');
+      displayDiv.innerHTML = '';
 
-      selectedSensors.forEach(sensor => {
-        const entries = data[sensor] || {};
-        const tempPoints = [], humPoints = [];
-        let latestTemp = '-', latestHum = '-';
+      selected.forEach(sensor => {
+        if (!data[sensor]) return;
 
-        Object.entries(entries).forEach(([ts, val]) => {
-          const label = new Date(ts * 1000).toLocaleTimeString();
-          labelsSet.add(label);
-          tempPoints.push({ x: label, y: val.temp });
-          humPoints.push({ x: label, y: val.hum });
-          latestTemp = val.temp;
-          latestHum = val.hum;
+        const timestamps = Object.keys(data[sensor]).sort();
+        const tempData = [];
+        const humData = [];
+        let latestTemp = '', latestHum = '';
+
+        timestamps.forEach(ts => {
+          const date = new Date(ts * 1000).toLocaleTimeString();
+          const temp = data[sensor][ts].temp;
+          const hum = data[sensor][ts].hum;
+          allLabels.add(date);
+          tempData.push({ x: date, y: temp });
+          humData.push({ x: date, y: hum });
+          latestTemp = temp;
+          latestHum = hum;
         });
 
         datasets.push({
           label: `${sensor} Temp`,
-          data: tempPoints,
-          borderColor: getColor(sensor, 'temperature'),
+          data: tempData,
+          borderColor: 'red',
           fill: false
         });
         datasets.push({
           label: `${sensor} Hum`,
-          data: humPoints,
-          borderColor: getColor(sensor, 'humidity'),
+          data: humData,
+          borderColor: 'blue',
           borderDash: [5, 5],
           fill: false
         });
 
-        dataDisplay.innerHTML += `<div class="sensor-box">${sensor.toUpperCase()} - Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
+        displayDiv.innerHTML += `<div>${sensor.toUpperCase()} — Temp: ${latestTemp}°C, Hum: ${latestHum}%</div>`;
       });
 
-      safetyChart.data.labels = Array.from(labelsSet);
-      safetyChart.data.datasets = datasets;
-      safetyChart.update();
+      chart.data.labels = Array.from(allLabels);
+      chart.data.datasets = datasets;
+      chart.update();
     }
 
-    // Load all sensors data
-    db.ref('/sensors').on('value', snapshot => updateChart(snapshot.val() || {}));
+    db.ref('/sensors').on('value', snap => {
+      if (snap.exists()) updateChart(snap.val());
+    });
 
-    // Re-render on checkbox toggle
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
       cb.addEventListener('change', () => {
-        db.ref('/sensors').once('value').then(snapshot => updateChart(snapshot.val() || {}));
+        db.ref('/sensors').once('value').then(snap => {
+          if (snap.exists()) updateChart(snap.val());
+        });
       });
     });
   </script>
