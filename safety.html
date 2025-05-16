@@ -2,22 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Live Dashboard - Safety Systems</title>
+
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0"></script>
+
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
+    .checkboxes label { margin-right: 15px; }
     canvas { max-width: 100%; margin-top: 20px; }
-    .checkboxes { margin-bottom: 15px; }
+    .data-box { margin-top: 20px; }
+    .sensor-box { margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <h2>Live Dashboard - Safety Systems</h2>
 
-  <div class="checkboxes">
+  <div class="checkboxes" id="sensorCheckboxes">
     <label><input type="checkbox" value="sensor1" checked> Sensor 1</label>
     <label><input type="checkbox" value="sensor2" checked> Sensor 2</label>
     <label><input type="checkbox" value="sensor3" checked> Sensor 3</label>
@@ -28,14 +31,39 @@
 
   <canvas id="combinedChart"></canvas>
 
+  <div class="data-box" id="dataValues"></div>
+
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBv4oWIy7zdQyFGgCZPthpmEQLo_vR8iwM",
       authDomain: "ultracold-matter-lab.firebaseapp.com",
       databaseURL: "https://ultracold-matter-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
       projectId: "ultracold-matter-lab",
-      storageBucket: "ultracold-matter-lab.appspot.com",
+      storageBucket: "ultracold-matter-lab.firebasestorage.app",
       messagingSenderId: "973389235899",
-      appId: "
-::contentReference[oaicite:12]{index=12}
- 
+      appId: "1:973389235899:web:6d4d8263a28c16d3c30b9e",
+      measurementId: "G-LHNSRWPFQ7"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const ctx = document.getElementById('combinedChart').getContext('2d');
+
+    const combinedChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        plugins: {
+          zoom: { zoom: { wheel: { enabled: true }, mode: 'x' }, pan: { enabled: true, mode: 'x' } },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ': ' + context.parsed.y + (context.dataset.temp ? ' °C' : ' %');
+              }
+            }
+          }
+        },
+        scales: {
+          x: { type: 'time', time:
